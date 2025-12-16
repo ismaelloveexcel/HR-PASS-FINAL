@@ -12,7 +12,7 @@ WEBAPP_PLAN=${WEBAPP_PLAN:-hrpass-plan}
 WEBAPP_NAME=${WEBAPP_NAME:-hrpass-backend}
 STATIC_APP_NAME=${STATIC_APP_NAME:-hrpass-frontend}
 PG_ADMIN_USER=${PG_ADMIN_USER:-azureuser}
-PG_ADMIN_PASS=${PG_ADMIN_PASS:-$(openssl rand -base64 16)}
+PG_ADMIN_PASS=${PG_ADMIN_PASS:-$(openssl rand -base64 16 | tr -d '+/=')}
 ALLOWED_IP=${ALLOWED_IP:-}
 OUTPUT_FILE=${OUTPUT_FILE:-./provision-output.txt}
 
@@ -65,6 +65,7 @@ umask 077
 cat > "${OUTPUT_FILE}" <<EOF
 DATABASE_URL=${DATABASE_URL}
 EOF
+echo "⚠️  Delete ${OUTPUT_FILE} after capturing secrets in GitHub to avoid lingering credentials."
 
 echo "Add these GitHub secrets (retrieve securely, do not paste in logs):"
 echo "  AZURE_WEBAPP_PUBLISH_PROFILE: run -> az webapp deployment list-publishing-profiles --name ${WEBAPP_NAME} --resource-group ${RESOURCE_GROUP} --query '[0].publishProfileXml' -o tsv (store securely)"

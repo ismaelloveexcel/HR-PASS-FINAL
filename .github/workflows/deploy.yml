@@ -39,7 +39,7 @@ jobs:
           package: dist
       - name: Smoke test /health
         run: |
-          curl -f "https://${WEBAPP_NAME}-${SLOT_NAME}.azurewebsites.net/health"
+          curl --retry 3 --retry-delay 5 --max-time 30 -f "https://${WEBAPP_NAME}-${SLOT_NAME}.azurewebsites.net/health"
       - name: Swap staging to production
         run: |
           az webapp deployment slot swap --name "${WEBAPP_NAME}" --resource-group "${RESOURCE_GROUP}" --slot "${SLOT_NAME}" --target-slot production
