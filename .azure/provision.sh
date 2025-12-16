@@ -11,6 +11,8 @@ POSTGRES_SKU=${POSTGRES_SKU:-Standard_B1ms}
 WEBAPP_PLAN=${WEBAPP_PLAN:-hrpass-plan}
 WEBAPP_NAME=${WEBAPP_NAME:-hrpass-backend}
 STATIC_APP_NAME=${STATIC_APP_NAME:-hrpass-frontend}
+PG_ADMIN_USER=${PG_ADMIN_USER:-azureuser}
+PG_ADMIN_PASS=${PG_ADMIN_PASS:-$(openssl rand -base64 16)}
 
 echo "Creating resource group ${RESOURCE_GROUP} in ${LOCATION}..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}"
@@ -22,9 +24,11 @@ az postgres flexible-server create \
   --location "${LOCATION}" \
   --sku-name "${POSTGRES_SKU}" \
   --storage-size 32 \
+  --admin-user "${PG_ADMIN_USER}" \
+  --admin-password "${PG_ADMIN_PASS}" \
   --yes
 
-echo "Enabling PostgreSQL firewall for Azure services..."
+echo "Enabling PostgreSQL firewall for Azure services (adjust start/end IPs to tighten access)..."
 az postgres flexible-server firewall-rule create \
   --resource-group "${RESOURCE_GROUP}" \
   --name "${POSTGRES_NAME}" \
@@ -33,8 +37,6 @@ az postgres flexible-server firewall-rule create \
   --end-ip-address 0.0.0.0
 
 PG_HOST="$(az postgres flexible-server show --resource-group "${RESOURCE_GROUP}" --name "${POSTGRES_NAME}" --query fullyQualifiedDomainName -o tsv)"
-PG_ADMIN_USER="azureuser"
-PG_ADMIN_PASS="$(az postgres flexible-server show --resource-group "${RESOURCE_GROUP}" --name "${POSTGRES_NAME}" --query administratorLoginPassword -o tsv)"
 DATABASE_URL="postgresql://${PG_ADMIN_USER}:${PG_ADMIN_PASS}@${PG_HOST}:5432/postgres?sslmode=require"
 
 echo "Creating App Service plan ${WEBAPP_PLAN} and Web App ${WEBAPP_NAME}..."
@@ -52,8 +54,7 @@ az staticwebapp create \
 
 echo ""
 echo "✅ Provisioning complete."
-echo "Add these GitHub secrets:"
-echo "  AZURE_WEBAPP_PUBLISH_PROFILE: $(az webapp deployment list-publishing-profiles --name "${WEBAPP_NAME}" --resource-group "${RESOURCE_GROUP}" --query '[0].publishProfileXml' -o tsv)"
-echo "  AZURE_STATIC_WEB_APPS_API_TOKEN: $(az staticwebapp secrets list --name "${STATIC_APP_NAME}" --query apiKey -o tsv)"
+echo "Add these GitHub secrets (retrieve securely):"
+echo "  AZURE_WEBAPP_PUBLISH_PROFILE: run -> az webapp deployment list-publishing-profiles --name ${WEBAPP_NAME} --resource-group ${RESOURCE_GROUP} --query '[0].publishProfileXml' -o tsv"
+echo "  AZURE_STATIC_WEB_APPS_API_TOKEN: run -> az staticwebapp secrets list --name ${STATIC_APP_NAME} --query apiKey -o tsv"
 echo "  DATABASE_URL: ${DATABASE_URL}"
-
