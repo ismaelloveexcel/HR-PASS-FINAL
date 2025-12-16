@@ -13,6 +13,7 @@ WEBAPP_NAME=${WEBAPP_NAME:-hrpass-backend}
 STATIC_APP_NAME=${STATIC_APP_NAME:-hrpass-frontend}
 PG_ADMIN_USER=${PG_ADMIN_USER:-azureuser}
 PG_ADMIN_PASS=${PG_ADMIN_PASS:-$(openssl rand -base64 16)}
+ALLOWED_IP=${ALLOWED_IP:-}
 
 echo "Creating resource group ${RESOURCE_GROUP} in ${LOCATION}..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}"
@@ -28,13 +29,17 @@ az postgres flexible-server create \
   --admin-password "${PG_ADMIN_PASS}" \
   --yes
 
-echo "Enabling PostgreSQL firewall for Azure services (adjust start/end IPs to tighten access)..."
-az postgres flexible-server firewall-rule create \
-  --resource-group "${RESOURCE_GROUP}" \
-  --name "${POSTGRES_NAME}" \
-  --rule-name allow-azure \
-  --start-ip-address 0.0.0.0 \
-  --end-ip-address 0.0.0.0
+if [[ -n "${ALLOWED_IP}" ]]; then
+  echo "Adding PostgreSQL firewall rule for ${ALLOWED_IP}..."
+  az postgres flexible-server firewall-rule create \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "${POSTGRES_NAME}" \
+    --rule-name allow-specific-ip \
+    --start-ip-address "${ALLOWED_IP}" \
+    --end-ip-address "${ALLOWED_IP}"
+else
+  echo "⚠️  Skipping firewall rule; set ALLOWED_IP to lock down access."
+fi
 
 PG_HOST="$(az postgres flexible-server show --resource-group "${RESOURCE_GROUP}" --name "${POSTGRES_NAME}" --query fullyQualifiedDomainName -o tsv)"
 DATABASE_URL="postgresql://${PG_ADMIN_USER}:${PG_ADMIN_PASS}@${PG_HOST}:5432/postgres?sslmode=require"
@@ -54,7 +59,7 @@ az staticwebapp create \
 
 echo ""
 echo "✅ Provisioning complete."
-echo "Add these GitHub secrets (retrieve securely):"
+echo "Add these GitHub secrets (retrieve securely, do not paste in logs):"
 echo "  AZURE_WEBAPP_PUBLISH_PROFILE: run -> az webapp deployment list-publishing-profiles --name ${WEBAPP_NAME} --resource-group ${RESOURCE_GROUP} --query '[0].publishProfileXml' -o tsv"
 echo "  AZURE_STATIC_WEB_APPS_API_TOKEN: run -> az staticwebapp secrets list --name ${STATIC_APP_NAME} --query apiKey -o tsv"
 echo "  DATABASE_URL: ${DATABASE_URL}"

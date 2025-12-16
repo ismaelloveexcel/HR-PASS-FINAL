@@ -5,7 +5,7 @@ on:
 
 env:
   NODE_VERSION: 20
-  APP_NAME: hrpass-backend
+  WEBAPP_NAME: hrpass-backend
   SLOT_NAME: staging
   RESOURCE_GROUP: hr-pass-rg
 
@@ -34,12 +34,12 @@ jobs:
       - name: Deploy to staging slot
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.APP_NAME }}
+          app-name: ${{ env.WEBAPP_NAME }}
           slot-name: ${{ env.SLOT_NAME }}
           package: dist
       - name: Smoke test /health
         run: |
-          curl -f "https://${APP_NAME}-${SLOT_NAME}.azurewebsites.net/health"
+          curl -f "https://${WEBAPP_NAME}-${SLOT_NAME}.azurewebsites.net/health"
       - name: Swap staging to production
         run: |
-          az webapp deployment slot swap --name "${APP_NAME}" --resource-group "${RESOURCE_GROUP}" --slot "${SLOT_NAME}" --target-slot production
+          az webapp deployment slot swap --name "${WEBAPP_NAME}" --resource-group "${RESOURCE_GROUP}" --slot "${SLOT_NAME}" --target-slot production
