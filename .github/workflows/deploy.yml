@@ -1,0 +1,45 @@
+name: Azure App Service Deploy (OIDC)
+
+on:
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 20
+  WEBAPP_NAME: hrpass-backend
+  SLOT_NAME: staging
+  RESOURCE_GROUP: hr-pass-rg
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy to staging slot
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          slot-name: ${{ env.SLOT_NAME }}
+          package: dist
+      - name: Smoke test /health
+        run: |
+          curl --retry 3 --retry-delay 5 --max-time 30 -f "https://${WEBAPP_NAME}-${SLOT_NAME}.azurewebsites.net/health"
+      - name: Swap staging to production
+        run: |
+          az webapp deployment slot swap --name "${WEBAPP_NAME}" --resource-group "${RESOURCE_GROUP}" --slot "${SLOT_NAME}" --target-slot production

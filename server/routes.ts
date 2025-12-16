@@ -18,6 +18,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
   
   // Get all candidates
   app.get("/api/candidates", async (req, res) => {
