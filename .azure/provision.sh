@@ -14,6 +14,7 @@ STATIC_APP_NAME=${STATIC_APP_NAME:-hrpass-frontend}
 PG_ADMIN_USER=${PG_ADMIN_USER:-azureuser}
 PG_ADMIN_PASS=${PG_ADMIN_PASS:-$(openssl rand -base64 16)}
 ALLOWED_IP=${ALLOWED_IP:-}
+OUTPUT_FILE=${OUTPUT_FILE:-./provision-output.txt}
 
 echo "Creating resource group ${RESOURCE_GROUP} in ${LOCATION}..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}"
@@ -59,7 +60,13 @@ az staticwebapp create \
 
 echo ""
 echo "✅ Provisioning complete."
+echo "Writing DATABASE_URL to ${OUTPUT_FILE} (chmod 600)..."
+umask 077
+cat > "${OUTPUT_FILE}" <<EOF
+DATABASE_URL=${DATABASE_URL}
+EOF
+
 echo "Add these GitHub secrets (retrieve securely, do not paste in logs):"
-echo "  AZURE_WEBAPP_PUBLISH_PROFILE: run -> az webapp deployment list-publishing-profiles --name ${WEBAPP_NAME} --resource-group ${RESOURCE_GROUP} --query '[0].publishProfileXml' -o tsv"
-echo "  AZURE_STATIC_WEB_APPS_API_TOKEN: run -> az staticwebapp secrets list --name ${STATIC_APP_NAME} --query apiKey -o tsv"
-echo "  DATABASE_URL: ${DATABASE_URL}"
+echo "  AZURE_WEBAPP_PUBLISH_PROFILE: run -> az webapp deployment list-publishing-profiles --name ${WEBAPP_NAME} --resource-group ${RESOURCE_GROUP} --query '[0].publishProfileXml' -o tsv (store securely)"
+echo "  AZURE_STATIC_WEB_APPS_API_TOKEN: run -> az staticwebapp secrets list --name ${STATIC_APP_NAME} --query apiKey -o tsv (store securely)"
+echo "  DATABASE_URL: stored in ${OUTPUT_FILE}"
